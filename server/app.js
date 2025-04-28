@@ -6,12 +6,11 @@ const morgan = require('morgan');
 const app = express();
 app.use(morgan('dev'));
 
-const cache = {}; // Cache object
+const cache = {};
 const API_KEY = process.env.OMDB_API_KEY;
 
-const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes in milliseconds
+const CACHE_DURATION = 10 * 60 * 1000;
 
-// Detect if running under npm test (skip cache expiration for tests)
 const isTesting = process.env.NODE_ENV === 'test';
 
 app.get('/', async (req, res) => {
@@ -27,7 +26,6 @@ app.get('/', async (req, res) => {
 
   const cachedEntry = cache[cacheKey];
 
-  // If cached and (not expired or testing mode), serve cached
   if (cachedEntry) {
     if (isTesting || (now - cachedEntry.timestamp) < CACHE_DURATION) {
       console.log('Serving from cache:', cacheKey);
@@ -50,7 +48,6 @@ app.get('/', async (req, res) => {
       return res.status(404).json({ error: 'Movie not found' });
     }
 
-    // Update cache with fresh data
     cache[cacheKey] = {
       data: movieData,
       timestamp: now
@@ -65,7 +62,6 @@ app.get('/', async (req, res) => {
   }
 });
 
-// Optional: route to clear cache manually
 app.get('/clear-cache', (req, res) => {
   for (let key in cache) {
     delete cache[key];
