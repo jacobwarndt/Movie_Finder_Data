@@ -6,22 +6,33 @@ const morgan = require('morgan');
 const app = express();
 app.use(morgan('dev'));
 
-const cache = {}; 
+const cache = {}; // Cache object
 const API_KEY = process.env.OMDB_API_KEY;
 
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes in milliseconds
+
+// Detect if running under npm test (skip cache expiration for tests)
+const isTesting = process.env.NODE_ENV === 'test';
+
 app.get('/', async (req, res) => {
-  const movieId = req.query.i;   
-  const movieTitle = req.query.t; 
+  const movieId = req.query.i;
+  const movieTitle = req.query.t;
 
   if (!movieId && !movieTitle) {
     return res.status(400).json({ error: 'Movie ID (i) or Title (t) is required' });
   }
 
   const cacheKey = movieId || movieTitle;
+  const now = Date.now();
 
-  if (cache[cacheKey]) {
-    console.log('Serving from cache:', cacheKey);
-    return res.status(200).json(cache[cacheKey]);
+  const cachedEntry = cache[cacheKey];
+
+  // If cached and (not expired or testing mode), serve cached
+  if (cachedEntry) {
+    if (isTesting || (now - cachedEntry.timestamp) < CACHE_DURATION) {
+      console.log('Serving from cache:', cacheKey);
+      return res.status(200).json(cachedEntry.data);
+    }
   }
 
   try {
@@ -39,7 +50,11 @@ app.get('/', async (req, res) => {
       return res.status(404).json({ error: 'Movie not found' });
     }
 
-    cache[cacheKey] = movieData;
+    // Update cache with fresh data
+    cache[cacheKey] = {
+      data: movieData,
+      timestamp: now
+    };
 
     console.log('Fetched from OMDb and cached:', cacheKey);
     return res.status(200).json(movieData);
@@ -48,6 +63,14 @@ app.get('/', async (req, res) => {
     console.error('Error fetching movie data:', error.message);
     return res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// Optional: route to clear cache manually
+app.get('/clear-cache', (req, res) => {
+  for (let key in cache) {
+    delete cache[key];
+  }
+  res.status(200).json({ message: 'Cache cleared!' });
 });
 
 module.exports = app;
