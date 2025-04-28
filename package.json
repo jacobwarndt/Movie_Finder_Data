@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "axios": "^0.16.2",
+    "dotenv": "^16.5.0",
     "morgan": "^1.8.2"
   },
   "devDependencies": {
